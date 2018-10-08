@@ -1,0 +1,7 @@
+*
+!Reserialize/
+!utils/
+!*.config
+!.gitignore
+!*.cs
+!*.py
