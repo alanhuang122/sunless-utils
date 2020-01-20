@@ -111,13 +111,11 @@ def render_html(string):
 
 class Quality:
     def __init__(self, jdata):
-        self.allowed_on = AllowedOn(jdata.get('AllowedOn'))
         self.cap = jdata.get('Cap')
-        self.category = Category(jdata.get('Category', 0))
         self.desc = jdata.get('Description', '(no description)')
         self.difficulty = jdata.get('DifficultyScaler')
         self.enhancements = []
-        for x in jdata['Enhancements']:
+        for x in jdata.get('Enhancements', []):
             self.enhancements.append(Effect(x))
         self.event = jdata.get('UseEvent', {}).get('Id')
         self.hint = jdata.get('AvailableAt')
@@ -135,7 +133,6 @@ class Quality:
         except Exception as e:
             self.leveldesc = None
         self.name = jdata.get('Name', '(no name)')
-        self.nature = Nature(jdata.get('Nature', 0))
         self.notes = jdata.get('Notes')
         self.owner_name = jdata.get('OwnerName')
         self.persistent = 'Persistent' in jdata
@@ -211,7 +208,10 @@ def parse_qlds(string):
 class Requirement:  #done
     def __init__(self, jdata):
         self.raw = jdata
-        self.quality = Quality.get(jdata['AssociatedQuality']['Id'])
+        try:
+            self.quality = Quality.get(jdata['AssociatedQuality']['Id'])
+        except KeyError:
+            self.quality = Quality.get(jdata['AssociatedQualityId'])
         try:
             self.upper_bound = jdata['MaxLevel']
         except:
@@ -238,8 +238,7 @@ class Requirement:  #done
             self.test_type = self.quality.test_type
         else:
             self.type = 'Requirement'
-        assert jdata.get('BranchVisibleWhenRequirementFailed') == jdata.get('VisibleWhenRequirementFailed')
-        self.visibility = jdata.get('BranchVisibleWhenRequirementFailed', False)
+        self.visibility = jdata.get('VisibleWhenRequirementFailed', False)
 
     def __repr__(self):
         string = ''
@@ -299,7 +298,7 @@ class Storylet: #done?
         self.category = jdata.get('Category')
         self.branches = []
         if not shallow:
-            for b in jdata['ChildBranches']:
+            for b in jdata.get('ChildBranches', []):
                 branch=Branch.get(b, self)
                 self.branches.append(branch)
                 for e in list(branch.events.items()):
@@ -311,13 +310,13 @@ class Storylet: #done?
         self.id = jdata['Id']
         try:
             self.area = Area.get(jdata['LimitedToArea']['Id'])
-        except KeyError:
+        except (KeyError, TypeError):
             self.area = None
         self.type = 'Storylet' if jdata['Deck']['Name'] == 'Always' else 'Card' if jdata['Deck']['Name'] == 'Sometimes' else 'Unknown type'
         if self.type == 'Card':
             self.frequency = jdata['Distribution']
         self.requirements = []
-        for r in jdata['QualitiesRequired']:
+        for r in jdata.get('QualitiesRequired', []):
             self.requirements.append(Requirement(r))
         
     def __repr__(self):
@@ -364,7 +363,7 @@ class Branch:   #done
         self.cost = jdata.get('ActionCost', 1)
         self.button = jdata.get('ButtonText') if jdata.get('ButtonText') else 'Go'
         self.requirements = []
-        for r in jdata['QualitiesRequired']:
+        for r in jdata.get('QualitiesRequired', []):
             self.requirements.append(Requirement(r))
         self.events = {}
         for key in list(jdata.keys()):
@@ -407,9 +406,8 @@ class Event:    #done
         self.parent = None        
         self.title = parser.unescape(jdata.get('Name', '(no title)'))
         self.desc = jdata.get('Description', '(no description)')
-        self.category = EventCategory(jdata.get('Category', 0))
         self.effects = []
-        for e in jdata['QualitiesAffected']:
+        for e in jdata.get('QualitiesAffected', []):
             self.effects.append(Effect(e))
         if jdata.get('ExoticEffects'):
             self.exotic_effect = jdata['ExoticEffects']
@@ -480,7 +478,10 @@ def render_events(event_dict):
 class Effect:   #done: Priority goes 3/2/1/0
     def __init__(self, jdata):
         self.raw = jdata
-        self.quality = Quality.get(jdata['AssociatedQuality']['Id'])
+        try:
+            self.quality = Quality.get(jdata['AssociatedQuality']['Id'])
+        except KeyError:
+            self.quality = Quality.get(jdata['AssociatedQualityId'])
         self.equip = 'ForceEquip' in jdata
         try:
             self.amount = jdata['Level']
@@ -534,7 +535,7 @@ class Effect:   #done: Priority goes 3/2/1/0
                     pass
             return f'{self.quality.name} (set to {self.setTo}{limits})'
         except:
-            if self.quality.nature == 2 or not self.quality.pyramid:
+            if not self.quality.pyramid:
                 try:
                     return f'{self.amount:+} x {self.quality.name}{limits}'
                 except:
