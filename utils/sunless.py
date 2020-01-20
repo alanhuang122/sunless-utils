@@ -497,6 +497,8 @@ class Effect:   #done: Priority goes 3/2/1/0
                 self.setTo = sub_qualities(jdata['SetToExactlyAdvanced'])
             except KeyError:
                 pass
+        if not hasattr(self, 'setTo') and not hasattr(self, 'amount'):
+            self.setTo = 0
         try:
             self.ceil = jdata['OnlyIfNoMoreThan']
         except KeyError:
@@ -511,8 +513,6 @@ class Effect:   #done: Priority goes 3/2/1/0
             self.priority = 0
 
     def __repr__(self):
-        if not hasattr(self, 'setTo') and not hasattr(self, 'amount'):
-            return f'{self.quality.name} - no effect'
         try:
             limits = f' if no more than {self.ceil} and at least {self.floor}'
         except:
